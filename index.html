@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fabric.js Canvas Demo</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.2.4/fabric.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; 
+        margin: 20px; display: flex; flex-direction: column; justify-content: center; }
+    canvas { border-radius: 5px; margin-top: 10px; box-shadow: 0px 1px 5px grey;
+    }
+    @media (max-width: 760px) {
+        canvas{
+            scale: .5;
+        }
+    }
+    .toolbar { margin-bottom: 10px; }
+    button, select, input { margin: 3px; padding: 5px 10px; }
+  </style>
+</head>
+<body>
+  <h2>Fabric.js Canvas Demo</h2>
+
+  <div class="toolbar">
+    <button onclick="enableDraw()">✏️ Draw</button>
+    <button onclick="addText()">🔤 Add Text</button>
+    <input type="color" id="colorPicker" value="#000000" onchange="changeColor(this.value)">
+    <select id="thickness" onchange="changeThickness(this.value)">
+      <option value="1">Very Thin</option>
+      <option value="2">Thin</option>
+      <option value="5">Medium</option>
+      <option value="10">Thick</option>
+    </select>
+    <button onclick="saveCanvas()">💾 Save</button>
+    <button onclick="loadCanvas()">📂 Load</button>
+    <button onclick="clearCanvas()">🧹 Clear</button>
+  </div>
+
+  <canvas id="c" width="850" height="450"></canvas>
+
+  <h3>Saved JSON</h3>
+  <textarea id="savedData" cols="70" rows="6"></textarea>
+
+  <script>
+    // Setup fabric canvas
+    const canvas = new fabric.Canvas('c');
+    canvas.isDrawingMode = true;
+    canvas.freeDrawingBrush.width = 1;
+    canvas.freeDrawingBrush.color = "#000000";
+
+    // Enable drawing mode
+    function enableDraw() {
+      canvas.isDrawingMode = true;
+    }
+
+    // Add text object
+    function addText() {
+      canvas.isDrawingMode = false;
+      const text = new fabric.Textbox("Type here", {
+        left: 100,
+        top: 100,
+        fontSize: 20,
+        fill: canvas.freeDrawingBrush.color
+      });
+      canvas.add(text).setActiveObject(text);
+    }
+
+    // Change brush color
+    function changeColor(color) {
+      canvas.freeDrawingBrush.color = color;
+      if (canvas.getActiveObject()?.type === "textbox") {
+        canvas.getActiveObject().set({ fill: color });
+        canvas.renderAll();
+      }
+    }
+
+    // Change brush thickness
+    function changeThickness(val) {
+      canvas.freeDrawingBrush.width = parseInt(val, 10);
+    }
+
+    // Save canvas as JSON
+    function saveCanvas() {
+      const json = JSON.stringify(canvas.toJSON());
+      document.getElementById("savedData").value = json;
+      localStorage.setItem("canvasData", json);
+      alert("Canvas saved!");
+    }
+
+    // Load canvas from JSON
+    function loadCanvas() {
+      const json = document.getElementById("savedData").value || localStorage.getItem("canvasData");
+      if (json) {
+        canvas.loadFromJSON(json, canvas.renderAll.bind(canvas));
+        alert("Canvas loaded!");
+        alert(json.length)
+      } else {
+        alert("No saved data found!");
+      }
+    }
+
+    // Clear canvas
+    function clearCanvas() {
+      canvas.clear();
+    }
+  </script>
+</body>
+</html>
