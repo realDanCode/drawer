@@ -9,106 +9,279 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.2.4/fabric.min.js"></script>
   <style>
     body { font-family: 'Roboto', Arial, sans-serif;
-    background-color: rgb(79, 153, 116);  text-align: center; 
+      text-align: center; align-items: center;
         margin: 20px; display: flex; flex-direction: column; justify-content: center; }
-    canvas { border-radius: 5px;
-      margin-top: 10px; box-shadow: 0px 1px 5px grey;
+
+    button, select, input { margin: 5px 5px; padding: 7px 10px;
+    border: none; border-radius: 5px; box-shadow: 0px 2px 5px rgb(204, 203, 203); }
+    .header{
+      position: fixed;
+      padding: 5pt;
+      top: 0px; left: 0px; right: 0px;
+      display: flex;
+      justify-content: space-between;
+      background-color: rgb(99, 2, 190);
     }
-    @media (max-width: 760px) {
-        canvas{
-            scale: .5;
-        }
+    .header div{
+      box-shadow: 0px 2px 5px #d0d5fc;
+      padding: 3pt;
+      height: max-content;
+      align-self: center;
+      color: rgb(224, 229, 253);
+      border-radius: 3px;
     }
-    .toolbar { margin-bottom: 10px; }
-    button, select, input { margin: 3px; padding: 5px 10px; }
+    .main{
+      position: fixed;
+      top: 7.5%;
+      padding: 5pt;
+      bottom: 0px;
+      left: 0px; right: 0px;
+      overflow-y: scroll;
+    }
+    .popBox{
+      padding: 5pt;
+      border-radius: 5px;
+      position: absolute;
+      top: 25%;
+      box-shadow: 0px 1px 4px gainsboro;
+      scale: .3; opacity: .5; visibility: hidden;
+      transition: all .7s;
+    }
+    .shown{
+      visibility: visible;
+      scale: 1; opacity: 1;
+      z-index: 400;
+    }
+    .footer{
+      position: fixed;
+      bottom: 0px; left: 0px; right: 0px;
+      padding: 5pt;
+      display: none;
+    }
+    .user{
+      color: rgb(248, 246, 117);
+    }
+    .overlay{
+      z-index: 300;
+      position: absolute;
+      top: 0px; right: 0px;
+      left: 0px; bottom: 0px;
+      background-color: grey;
+      opacity: .6;
+      visibility: hidden;
+    }
+    .visible{
+      visibility: visible;
+    }
+    #user-pop{
+      background-color: rgb(246, 248, 250);
+    }
+    #user-pop div{
+      text-align: left;
+      border-radius: 3px;
+      padding: 3pt;
+      cursor: pointer;
+    }
+    #user-pop div:hover{
+      background-color: lightgray;
+    }
+
+    #all-messages{
+      display: flex;
+      flex-direction: column;
+      padding-bottom: 20pt;
+      padding-top: 5pt;
+    }
+    .sent{
+      align-self: flex-end;
+    }
+    .recieved{
+      align-self: flex-start;
+    }
   </style>
 </head>
 <body>
-  <h2>Fabric.js Canvas Demo</h2>
-
-  <div class="toolbar">
-    <button onclick="enableDraw()">✏️ Draw</button>
-    <button onclick="addText()">🔤 Add Text</button>
-    <input type="color" id="colorPicker" value="#000000" onchange="changeColor(this.value)">
-    <select id="thickness" onchange="changeThickness(this.value)">
-      <option value="1">Very Thin</option>
-      <option value="2">Thin</option>
-      <option value="5">Medium</option>
-      <option value="10">Thick</option>
-    </select>
-    <button onclick="saveCanvas()">💾 Save</button>
-    <button onclick="loadCanvas()">📂 Load</button>
-    <button onclick="clearCanvas()">🧹 Clear</button>
+  <div class="header">
+    <div class="logo">QuickChat</div>
+    <div id="user-info">NOT ACTIVE</div>
+    <div id="log-info">
+    </div>
   </div>
 
-  <div style="background-color: rgb(102, 196, 164);">
-    <canvas id="c" width="850" height="450"></canvas>
+  <div class="main" id="message-space">
+      <h4>MESSAGES  <br/><span id="typer"></span></h4>
+      <hr/>
+      <div id="all-messages"></div>
   </div>
 
-  <h3>Saved JSON</h3>
-  <textarea id="savedData" cols="70" rows="6"></textarea>
 
-  <script>
-    // Setup fabric canvas
-    const canvas = new fabric.Canvas('c');
-    canvas.isDrawingMode = true;
-    canvas.freeDrawingBrush.width = 1;
-    canvas.freeDrawingBrush.color = "#000000";
+  <div id="log-box" class="popBox">
+    <h4>ADD YOUR ACCOUNT</h4>
+    <form>
+    <input required type="text" minlength="4" name="username" placeholder="Enter Username" id="username" class="user"/>
+    <input required type="email" name="email" placeholder="Enter your Email" id="email" class="user"/>
+    <input required type="password" minlength="6" name="password" placeholder="Add Password" id="password" class="user">
+    <input required type="password" name="password" placeholder="Confirm Password" id="password2" class="user">
+    <div id="msg" class="confirmer"></div>
+    <button id="regBtn" type="button">ADD ACCOUNT</button>
+    </form>
+  </div>
 
-    // Enable drawing mode
-    function enableDraw() {
-      canvas.isDrawingMode = true;
+  <div class="popBox" id="user-pop">
+    <h5>Choose your account to Continue!</h5>
+  </div>
+
+  <div id="footer" class="footer">
+    MESSAGES, ADD FRIENDS, SETTINGS
+    <textarea id="msg-content" cols="25" rows="2" placeholder="Write Messag..."></textarea>
+    <button id="sender">SEND MESSAGE</button>
+  </div>
+
+  <div class="overlay" id="overlayer"></div>
+  <script type="text/javascript">
+    let activeUser = "User";
+    //localStorage.setItem('messageBox', JSON.stringify([]))
+    let userDetails = {}
+    let messageBox = JSON.parse(localStorage.getItem('messageBox'))
+    let loggedAcct = JSON.parse(localStorage.getItem('loggedAccts')) || []
+    //alert(loggedAcct.length)
+    if(loggedAcct.length === 0){
+      //prompt signUp
+      showLogBox()
+    } else{
+      idElm("log-info").innerHTML = "<button onclick='showLogBox()'>ADD ACCOUNT</button/>"
+      //idElm('user-info').innerHTML = "<strong class='user'>" + activeUser + "</strong>"
+      idElm("footer").style.display = 'block'
+      //showSignUp new account Btn, showLogOut option as well
+      //choose whom you're interacting as
+      choosePersonality(idElm("user-pop"), loggedAcct)
     }
 
-    // Add text object
-    function addText() {
-      canvas.isDrawingMode = false;
-      const text = new fabric.Textbox("Type here", {
-        left: 100,
-        top: 100,
-        fontSize: 20,
-        fill: canvas.freeDrawingBrush.color
-      });
-      canvas.add(text).setActiveObject(text);
+    //sign me up
+    idElm("regBtn").addEventListener('click', setMeUp)
+    function setMeUp(){
+      let pass1 = idElm("password").value; pass2 = idElm("password2").value
+      const newUser = {};
+      newUser.chatPorts = []; 
+      if(pass1 === pass2){
+      newUser.username = idElm("username").value.trim();
+      newUser.mail = idElm("email").value.trim()
+      newUser.password = idElm("password").value.trim();
+      newUser.friends = []
+      newUser.srialNo = 1001 + loggedAcct.length; newUser.trackId = new Date().getTime()
+      //logic search if username is non existing
+      let us = loggedAcct.findIndex(p => p.username === idElm('username').value.trim())
+      let em = loggedAcct.findIndex(p => p.email === idElm('email').value.trim())
+      console.log(us + ' ' + em)
+   if(us > -1 || em >-1){
+      idElm("msg").innerText = "Can't add your account. Either your username or Email has already being used by another user"
+      idElm('msg').style = 'font-size: 12px; color: pink;'
+     } else {
+      loggedAcct.push(newUser)
+      event.target.disabled = true;
+      localStorage.setItem("loggedAccts", JSON.stringify(loggedAcct))
+      event.target.disabled = true
+      //setUserOnline(newUser)
+      if(loggedAcct.length > 0){
+        //buildChartPort(user)
+      }
+      idElm("msg").innerText = "Registration Successful, Kindly wait for page to reload!"
+      idElm('msg').style = 'font-size: 12px; color: lightgreen;'
+      setTimeout(()=>{
+        location.reload()
+      }, 3000)
+    } // implies user does not exists
+      }
+      
+        }
+
+
+    //setUseOnline either signned in/up
+    function setUseOnline(user){
+      localStorage.setItem("userActive_" + user.trackId, JSON.stringify(user))
     }
 
-    // Change brush color
-    function changeColor(color) {
-      canvas.freeDrawingBrush.color = color;
-      if (canvas.getActiveObject()?.type === "textbox") {
-        canvas.getActiveObject().set({ fill: color });
-        canvas.renderAll();
+
+    //choose who you are
+    function choosePersonality(space, arr){
+      addOverlay()
+      space.classList.toggle('shown')
+
+      for(var h=0; h<arr.length;h++){
+        let elm = document.createElement('div')
+        let userId = arr[h].trackId; userName = arr[h].username
+        elm.className = 'user-selector'
+        elm.id = userId
+        elm.onclick = setAccount
+        elm.innerHTML = (h+1) + ". " + userName
+        elm.id = arr[h].trackId
+        space.appendChild(elm)
+      }
+
+      messageUpdatter(activeUser);
+    }
+    //
+    function setAccount(){
+      let elm = parseInt(event.target.id)
+      let i = loggedAcct.findIndex(u => u.trackId === elm); alert(i)
+      let user = loggedAcct[i]
+      addOverlay()
+      idElm("user-pop").classList.remove('shown')
+      activeUser = user;
+      idElm('user-info').innerHTML = "<strong class='user'>" + user.username + "</strong>"
+    }
+
+
+    //important aspect for message fetching and displays
+    function messageUpdatter(user){
+      let liveMessage = setInterval(() => {
+      messageBox = JSON.parse(localStorage.getItem('messageBox'))
+      idElm('typer').innerHTML = messageBox.length
+      idElm('all-messages').innerHTML = ""
+
+      for(let h=0; h<messageBox.length; h++){
+        if(messageBox[h].message){
+        let msg = document.createElement("div")
+        if(messageBox[h].sender === activeUser.username){
+          msg.className = 'sent'
+        } else{
+          msg.className = 'recieved'
+        }
+        msg.innerHTML = "<h5>" + messageBox[h].sender + "</h5><div>" + messageBox[h].message + "</div>"
+        idElm("all-messages").appendChild(msg)
+      }
+      }
+      }, 1500)
+    }
+
+
+
+    //sending messages....
+    idElm('sender').addEventListener("click", sendMsg)
+    function sendMsg(){
+      let message = idElm('msg-content').value;
+      if(message){
+      let newMsg = {}; newMsg.sender = activeUser.username;
+      newMsg.senderInfo = activeUser;
+      newMsg.message = message;
+      newMsg.timeSent = '02:45pm || Aug 27'
+      messageBox.push(newMsg)
+      localStorage.setItem('messageBox', JSON.stringify(messageBox))
+      console.log(newMsg); idElm('msg-content').value = ''
       }
     }
-
-    // Change brush thickness
-    function changeThickness(val) {
-      canvas.freeDrawingBrush.width = parseInt(val, 10);
+    //just params
+    function showLogBox(){
+      addOverlay()
+      idElm('log-box').classList.toggle('shown')
     }
 
-    // Save canvas as JSON
-    function saveCanvas() {
-      const json = JSON.stringify(canvas.toJSON());
-      document.getElementById("savedData").value = json;
-      localStorage.setItem("canvasData", json);
-      alert("Canvas saved!");
+    function addOverlay(){
+      idElm('overlayer').classList.toggle('visible')
     }
-
-    // Load canvas from JSON
-    function loadCanvas() {
-      const json = document.getElementById("savedData").value || localStorage.getItem("canvasData");
-      if (json) {
-        canvas.loadFromJSON(json, canvas.renderAll.bind(canvas));
-        alert("Canvas loaded!");
-        alert(json.length)
-      } else {
-        alert("No saved data found!");
-      }
-    }
-
-    // Clear canvas
-    function clearCanvas() {
-      canvas.clear();
+    function idElm(elm){
+      let myElement = document.getElementById(elm)
+      return myElement
     }
   </script>
 </body>
